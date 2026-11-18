@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relance WhatsApp</title>
+<style>
+:root{--bg:#f7f5f0;--ink:#1c2a39;--mute:#5d6b7a;--line:#d9d4c8;--card:#fff;--accent:#c9540a;--accent-ink:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#141b23;--ink:#eef1f4;--mute:#9aa7b4;--line:#2b3744;--card:#1b242e;--accent:#f08a4b;--accent-ink:#141b23}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 Georgia,"Times New Roman",serif}
+main{max-width:520px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:1.9rem;line-height:1.15;margin:0 0 6px}
+p.sub{margin:0 0 24px;color:var(--mute)}
+form,.out{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+label{display:block;font:600 .9rem system-ui,sans-serif;margin:14px 0 5px}
+label:first-child{margin-top:0}
+input,select,textarea{width:100%;font:1rem system-ui,sans-serif;padding:11px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.row{display:flex;gap:10px}.row>*{flex:1}.row .cc{flex:0 0 90px}
+button,a.btn{display:block;width:100%;text-align:center;text-decoration:none;font:600 1rem system-ui,sans-serif;padding:13px;border:0;border-radius:6px;background:var(--accent);color:var(--accent-ink);cursor:pointer;margin-top:18px}
+button.alt{background:transparent;color:var(--ink);border:1px solid var(--line);margin-top:10px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.out{margin-top:20px;display:none}
+.out textarea{min-height:170px;resize:vertical}
+h2{font-size:1.1rem;margin:28px 0 8px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font:.95rem system-ui,sans-serif}
+li span{color:var(--mute)}
+.err{color:var(--accent);font:600 .9rem system-ui,sans-serif;margin:10px 0 0;min-height:1.2em}
+</style>
+</head>
+<body>
+<main>
+<h1>Relancer un client qui n'a pas payé</h1>
+<p class="sub">Remplis trois champs, le message est prêt à envoyer sur WhatsApp.</p>
+
+<form id="f" novalidate>
+  <label for="boutique">Nom de ta boutique</label>
+  <input id="boutique" placeholder="Boutique Mariam">
+  <label for="client">Nom du client</label>
+  <input id="client" placeholder="Koffi" required>
+  <div class="row">
+    <div class="cc"><label for="cc">Pays</label><input id="cc" value="229" inputmode="numeric"></div>
+    <div><label for="tel">Numéro WhatsApp</label><input id="tel" inputmode="tel" placeholder="01 97 00 00 00" required></div>
+  </div>
+  <label for="montant">Montant dû (FCFA)</label>
+  <input id="montant" inputmode="numeric" placeholder="15000" required>
+  <label for="objet">Pour quoi ? (facultatif)</label>
+  <input id="objet" placeholder="les 3 pagnes du 5 novembre">
+  <label for="ton">Ton du message</label>
+  <select id="ton"><option value="doux">Aimable</option><option value="neutre">Neutre</option><option value="ferme">Ferme</option></select>
+  <p class="err" id="err" role="alert"></p>
+  <button type="submit">Préparer la relance</button>
+</form>
+
+<section class="out" id="out" aria-live="polite">
+  <label for="msg">Message (tu peux le modifier)</label>
+  <textarea id="msg"></textarea>
+  <a class="btn" id="wa" href="#" target="_blank" rel="noopener">Envoyer sur WhatsApp</a>
+  <button type="button" class="alt" id="copy">Copier le message</button>
+</section>
+
+<h2>Dernières relances</h2>
+<ul id="hist"><li><span>Aucune relance pour l'instant.</span></li></ul>
+</main>
+
+<script>
+var $=function(i){return document.getElementById(i)};
+var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+$('boutique').value=store.get('boutique')||'';
+
+function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u202f')}
+function phone(cc,t){var d=t.replace(/\D/g,'');if(d.indexOf('00')===0)return d.slice(2);return cc.replace(/\D/g,'')+d}
+
+function build(){
+  var b=$('boutique').value.trim(),c=$('client').value.trim(),m=fmt($('montant').value.replace(/\D/g,'')),o=$('objet').value.trim(),t=$('ton').value;
+  var pour=o?' pour '+o:'';var sig=b?'\n\n'+b:'';
+  if(t==='doux')return 'Bonjour '+c+', j\u2019espère que tu vas bien. Petit rappel : il reste '+m+' FCFA à régler'+pour+'. Tu peux payer par Mobile Money quand tu veux. Merci beaucoup !'+sig;
+  if(t==='ferme')return 'Bonjour '+c+', ton paiement de '+m+' FCFA'+pour+' est en retard. Merci de le régler aujourd\u2019hui par Mobile Money, ou de me dire quand tu pourras le faire.'+sig;
+  return 'Bonjour '+c+', je te rappelle qu\u2019un montant de '+m+' FCFA reste à régler'+pour+'. Peux-tu le payer par Mobile Money dès que possible ? Merci.'+sig;
+}
+
+function showHist(){
+  var h=[];try{h=JSON.parse(store.get('hist')||'[]')}catch(e){}
+  if(!h.length)return;
+  $('hist').innerHTML=h.map(function(x){return '<li>'+x.c.replace(/</g,'&lt;')+'<span>'+x.m+' FCFA · '+x.d+'</span></li>'}).join('');
+}
+function log(){
+  var h=[];try{h=JSON.parse(store.get('hist')||'[]')}catch(e){}
+  h.unshift({c:$('client').value.trim(),m:fmt($('montant').value.replace(/\D/g,'')),d:new Date().toLocaleDateString('fr-FR')});
+  store.set('hist',JSON.stringify(h.slice(0,8)));showHist();
+}
+function link(){return 'https://wa.me/'+phone($('cc').value,$('tel').value)+'?text='+encodeURIComponent($('msg').value)}
+
+$('f').addEventListener('submit',function(e){
+  e.preventDefault();
+  var ok=$('client').value.trim()&&$('tel').value.replace(/\D/g,'').length>=8&&$('montant').value.replace(/\D/g,'');
+  if(!ok){$('err').textContent='Remplis le nom, le numéro WhatsApp et le montant.';return}
+  $('err').textContent='';store.set('boutique',$('boutique').value.trim());
+  $('msg').value=build();$('out').style.display='block';$('wa').href=link();
+  $('out').scrollIntoView({behavior:'smooth'});
+});
+$('msg').addEventListener('input',function(){$('wa').href=link()});
+$('wa').addEventListener('click',function(){$('wa').href=link();log()});
+$('copy').addEventListener('click',function(){
+  var b=$('copy');
+  (navigator.clipboard?navigator.clipboard.writeText($('msg').value):Promise.reject()).then(function(){b.textContent='Message copié'},function(){$('msg').select();b.textContent='Sélectionné, copie-le'});
+});
+showHist();
+</script>
+</body>
+</html>
